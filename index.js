@@ -17,6 +17,41 @@ client.on('ready', () => {
     console.log("Successfully logged in.");
 });
 
+function updateRestartMessage(msg, minutesLeft) {
+    msg.edit("Everyone has " + minutesLeft + " minutes to join tournaments. Join by saying 'join'");
+};
+
+client.on('message', msg => {
+    //Check that the message isn't from us and it's in our channel
+    if (!msg.author.bot && msg.channel.name == "bizz-buzz-boom") {
+        if (msg.content.trim().toLowerCase() == "restart") {
+            msg.reply("Attempting To Restarting Tournament");
+
+            var restartTime = Date.now();
+
+            info.findOneAndUpdate({}, {
+                $set: {
+                    started: false,
+                    players: [],
+                    minutesLeft: 5
+                }
+            }, err => {
+                if (!err) {
+                    msg.reply("Successfully Restarted Tournament");
+
+                    //Schedule it to keep doing this
+                }
+                else {
+                    msg.reply("Couldn't Restart Tournament");
+                }
+            });
+        }
+        else {
+            msg.reply("Unkown Command");
+        }
+    }
+});
+
 console.log("Connecting to mongodb.");
 
 mongoClient.connect(err => {
