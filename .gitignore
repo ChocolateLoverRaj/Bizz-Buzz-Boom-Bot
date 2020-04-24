@@ -1,3 +1,9 @@
+# Secrets
+secrets.json
+
+# Visual Studio
+.vs/
+
 # Logs
 logs
 *.log
