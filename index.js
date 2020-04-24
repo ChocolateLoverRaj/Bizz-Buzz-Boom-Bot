@@ -13,12 +13,21 @@ const uri = 'mongodb://' + Secrets.mongodbUsername + ':' + Secrets.mongodbPasswo
 const mongoClient = new MongoClient(uri, { useUnifiedTopology: true, useNewUrlParser: true });
 var info;
 
+var canJoin = false;
+
 client.on('ready', () => {
     console.log("Successfully logged in.");
 });
 
-function updateRestartMessage(msg, minutesLeft) {
-    msg.edit("Everyone has " + minutesLeft + " minutes to join tournaments. Join by saying 'join'");
+function updateRestartMessage(msg, minutesLeft, time) {
+    setTimeout(() => {
+        if (minutesLeft > 0) {
+            msg.edit("Everyone has " + minutesLeft + " minutes to join tournaments. Join by saying 'join'");
+        }
+        else {
+            msg.edit("Times up! You cannot join anymore. Starting game.");
+        }
+    }, time - Date.now());
 };
 
 client.on('message', msg => {
@@ -26,8 +35,6 @@ client.on('message', msg => {
     if (!msg.author.bot && msg.channel.name == "bizz-buzz-boom") {
         if (msg.content.trim().toLowerCase() == "restart") {
             msg.reply("Attempting To Restarting Tournament");
-
-            var restartTime = Date.now();
 
             info.findOneAndUpdate({}, {
                 $set: {
@@ -39,7 +46,21 @@ client.on('message', msg => {
                 if (!err) {
                     msg.reply("Successfully Restarted Tournament");
 
-                    //Schedule it to keep doing this
+                    //Schedule it to keep doing this until 0 minutes
+                    msg.channel.send("Loading...")
+                        .then(msg => {
+                            canJoin = true;
+
+                            var startTime = Date.now();
+                            var minutesLeft = 5;
+                            var iteration = 0;
+                            while (minutesLeft >= 0) {
+                                updateRestartMessage(msg, minutesLeft, startTime + iteration * 1000 * 60);
+                                minutesLeft--;
+                                iteration++;
+                            }
+                        })
+                        .catch(console.error);
                 }
                 else {
                     msg.reply("Couldn't Restart Tournament");
