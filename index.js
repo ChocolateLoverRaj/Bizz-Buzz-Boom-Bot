@@ -9,7 +9,7 @@ const Secrets = require("./secrets")();
 
 //Mongodb dependancies
 const MongoClient = require('mongodb').MongoClient;
-const uri = 'mongodb://' + Secrets.mongodb.username + ':' + Secrets.mongodb.password + "@" + Secrets.mongodb.cluster;
+const uri = 'mongodb://' + Secrets.mongodbUsername + ':' + Secrets.mongodbPassword + "@" + Secrets.mongodbDomain;
 const mongoClient = new MongoClient(uri, { useUnifiedTopology: true, useNewUrlParser: true });
 
 client.on('ready', () => {
