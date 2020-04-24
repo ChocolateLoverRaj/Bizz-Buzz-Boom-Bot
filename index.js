@@ -9,4 +9,4 @@ client.on('ready', () => {
     console.log("Successfully logged in.");
 });
 
-client.login(Secrets.token);
+client.login(Secrets.token.trim());
