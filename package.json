@@ -1,0 +1,23 @@
+{
+  "name": "bizz-buzz-boom-bot",
+  "version": "1.0.0",
+  "description": "Bot for hosting bizz buzz boom tournaments.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChocolateLoverRaj/Bizz-Buzz-Boom-Bot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ChocolateLoverRaj/Bizz-Buzz-Boom-Bot/issues"
+  },
+  "homepage": "https://github.com/ChocolateLoverRaj/Bizz-Buzz-Boom-Bot#readme",
+  "dependencies": {
+    "discord.js": "^12.2.0"
+  }
+}
