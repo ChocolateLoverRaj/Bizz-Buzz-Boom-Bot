@@ -3,4 +3,10 @@ const Discord = require('discord.js');
 const client = new Discord.Client();
 const Secrets = require("./secrets")();
 
-console.log("Connecting", Secrets);
+console.log("Loggin in.")
+
+client.on('ready', () => {
+    console.log("Successfully logged in.");
+});
+
+client.login(Secrets.token);
