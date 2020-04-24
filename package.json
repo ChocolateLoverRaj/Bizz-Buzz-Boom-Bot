@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/ChocolateLoverRaj/Bizz-Buzz-Boom-Bot#readme",
   "dependencies": {
-    "discord.js": "^12.2.0"
+    "discord.js": "^12.2.0",
+    "mongodb": "^3.5.6"
   }
 }
