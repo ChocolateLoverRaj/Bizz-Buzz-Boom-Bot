@@ -16,9 +16,12 @@ const uri = 'mongodb://' + Secrets.mongodbUsername + ':' + Secrets.mongodbPasswo
 const mongoClient = new MongoClient(uri, { useUnifiedTopology: true, useNewUrlParser: true });
 var info;
 
-var tournamentRunning = true;
+var tournamentRunning = false;
+var canJoin = false;
 var myChannel;
 var myGuild;
+
+const syntaxRegex = /(^(((bizz|buzz|boom)(?!(.*\4))($| )){1,3})$(?<!\s))|(^\d+$)/is;
 
 var numToSay;
 var players;
@@ -62,6 +65,22 @@ client.on('ready', () => {
             console.log("Successfuly fetched my channel.");
             myChannel = channel;
             channel.send("Bizz Buzz Boom Bot Is Online.");
+
+            //Get data
+            info.findOne({}, (err, game) => {
+                if (!err && game) {
+                    if (game.started) {
+                        tournamentRunning = true;
+                        players = game.players;
+                        turn = game.turn;
+                        numToSay = game.numToSay;
+                    }
+                }
+                else {
+                    myChannel.send("Could not load game.");
+                    console.error("Could not load game.");
+                }
+            });
             tournament.emit("connect");
         })
         .catch(() => {
@@ -69,6 +88,9 @@ client.on('ready', () => {
         });
 });
 
+function announceTurn() {
+    myChannel.send("It is now " + myGuild.member(players[turn]).displayName + "'s turn.");
+}
 function updateRestartMessage(msg, minutesLeft, time) {
     setTimeout(() => {
         if (minutesLeft > 0) {
@@ -77,6 +99,7 @@ function updateRestartMessage(msg, minutesLeft, time) {
         else {
             msg.edit("Times up! You cannot join anymore. Starting game.");
             tournamentRunning = true;
+            canJoin = false;
 
             tournament.once("readyToStart", () => {
                 info.findOneAndUpdate(
@@ -102,6 +125,8 @@ function updateRestartMessage(msg, minutesLeft, time) {
                                 };
 
                                 myChannel.send("Tournament has officially started." + "\n\n" + "Here is the order:" + "\n\n" + playerList);
+
+                                announceTurn();
                             }
                             else {
                                 myChannel.send("No one wins because no one joined. Tournament abandoned.");
@@ -143,12 +168,13 @@ tournament.once("connect", () => {
                         msg.channel.send("Loading...")
                             .then(msg => {
                                 tournamentRunning = false;
+                                canJoin = true;
 
                                 var startTime = Date.now();
                                 var minutesLeft = 5;
                                 var iteration = 0;
                                 while (minutesLeft >= 0) {
-                                    updateRestartMessage(msg, minutesLeft, startTime + iteration * 1000 * 60);
+                                    updateRestartMessage(msg, minutesLeft, startTime + iteration * 1000 * 1);
                                     minutesLeft--;
                                     iteration++;
                                 }
@@ -161,7 +187,7 @@ tournament.once("connect", () => {
                 });
             }
             else if (msg.content.trim().toLowerCase() == "join") {
-                if (!tournamentRunning) {
+                if (canJoin) {
                     msg.reply("Attempting to add you to the game...");
 
                     //Set player status
@@ -201,7 +227,18 @@ tournament.once("connect", () => {
             }
             else {
                 if (tournamentRunning) {
-                    
+                    if (players.includes(msg.author.id)) {
+                        //Check if what they said makes sense
+                        if (syntaxRegex.test(msg.content.trim())) {
+                            msg.reply("Good syntax.");
+                        }
+                        else {
+                            msg.reply("Bad snytax.");
+                        }
+                    }
+                    else {
+                        msg.delete("Because you are not part of the current tournament.");
+                    }
                 }
                 else {
                     msg.reply("Unkown Command");
