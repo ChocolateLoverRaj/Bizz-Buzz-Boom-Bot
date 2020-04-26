@@ -20,6 +20,10 @@ var tournamentRunning = true;
 var myChannel;
 var myGuild;
 
+var numToSay;
+var players;
+var turn;
+
 const tournament = new EventEmitter();
 
 function asnycTournamentManager() {
@@ -80,12 +84,17 @@ function updateRestartMessage(msg, minutesLeft, time) {
                     {
                         $set: {
                             numToSay: 1,
+                            turn: 0,
                             started: true
                         }
                     },
                     (err, res) => {
                         if (!err && res && res.ok) {
                             if (res.value.players.length > 0) {
+                                numToSay = 1;
+                                turn = 0;
+                                players = res.value.players;
+
                                 var playerList = "";
                                 for (var i = 0; i < res.value.players.length; i++) {
                                     var player = myGuild.member(res.value.players[i]);
@@ -139,7 +148,7 @@ tournament.once("connect", () => {
                                 var minutesLeft = 5;
                                 var iteration = 0;
                                 while (minutesLeft >= 0) {
-                                    updateRestartMessage(msg, minutesLeft, startTime + iteration * 1000 * 1);
+                                    updateRestartMessage(msg, minutesLeft, startTime + iteration * 1000 * 60);
                                     minutesLeft--;
                                     iteration++;
                                 }
@@ -191,7 +200,12 @@ tournament.once("connect", () => {
                 }
             }
             else {
-                msg.reply("Unkown Command");
+                if (tournamentRunning) {
+                    
+                }
+                else {
+                    msg.reply("Unkown Command");
+                }
             }
         }
     });
