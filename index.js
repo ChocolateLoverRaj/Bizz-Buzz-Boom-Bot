@@ -90,7 +90,7 @@ client.on('ready', () => {
 });
 
 function announceTurn() {
-    if (players.length > 0) {
+    if (players.length > 1) {
         myChannel.send("It is now " + myGuild.member(players[turn]).displayName + "'s turn.");
     }
     else {
@@ -103,12 +103,13 @@ function announceTurn() {
                 }
             },
             (err, res) => {
+                var whatToSayToPlayers = "Everyone except " + myGuild.member(players[0]).displayName + " is out. Game over!";
                 if (!err && res && res.ok) {
                     tournamentRunning = false;
-                    myChannel.send("Everyone is out. Game over.");
+                    myChannel.send(whatToSayToPlayers);
                 }
                 else {
-                    myChannel.send("Everyone is out. Game over. Failed to update server.");
+                    myChannel.send(whatToSayToPlayers + " Failed to update server.");
                 }
             });
     }
@@ -130,6 +131,7 @@ function updateRestartMessage(msg, minutesLeft, time) {
                         $set: {
                             numToSay: 1,
                             turn: 0,
+                            lastAnswer: "You are the first person to answer.",
                             started: true
                         }
                     },
@@ -193,10 +195,10 @@ tournament.once("connect", () => {
                                 canJoin = true;
 
                                 var startTime = Date.now();
-                                var minutesLeft = 5;
+                                var minutesLeft = 2;
                                 var iteration = 0;
                                 while (minutesLeft >= 0) {
-                                    updateRestartMessage(msg, minutesLeft, startTime + iteration * 1000 * 1);
+                                    updateRestartMessage(msg, minutesLeft, startTime + iteration * 1000 * 60);
                                     minutesLeft--;
                                     iteration++;
                                 }
@@ -261,7 +263,8 @@ tournament.once("connect", () => {
                                         {},
                                         {
                                             $set: {
-                                                turn: turn + 1 < players.length ? turn + 1 : 0
+                                                turn: turn + 1 < players.length ? turn + 1 : 0,
+                                                lastAnswer: myGuild.member(msg.author.id).displayName + " said " + whatTheySaid + "."
                                             },
                                             $inc: {
                                                 numToSay: 1
@@ -316,6 +319,32 @@ tournament.once("connect", () => {
                             else {
                                 msg.reply("Bad snytax.");
                             }
+                        }
+                        else {
+                            msg.reply("It isn't your turn.");
+                        }
+                    }
+                    else {
+                        msg.reply("You aren't in the tournament.");
+                    }
+                }
+                else {
+                    msg.reply("Tournament isn't running");
+                }
+            } 
+            else if (msg.content.trim().toLowerCase() == "last") {
+                if (tournamentRunning) {
+                    if (players.includes(msg.author.id)) {
+                        if (players[turn] == msg.author.id) {
+                            //Get the last answer
+                            info.findOne({}, (err, game) => {
+                                if (!err && game) {
+                                    msg.reply(game.lastAnswer);
+                                }
+                                else {
+                                    msg.reply("Failed to retrieve last answer.");
+                                }
+                            });
                         }
                         else {
                             msg.reply("It isn't your turn.");
