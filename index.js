@@ -9,6 +9,7 @@ const client = new Discord.Client();
 
 //My dependancies
 const Secrets = require("./secrets")();
+const say = require("./say");
 
 //Mongodb dependancies
 const MongoClient = require('mongodb').MongoClient;
@@ -16,9 +17,16 @@ const uri = 'mongodb://' + Secrets.mongodbUsername + ':' + Secrets.mongodbPasswo
 const mongoClient = new MongoClient(uri, { useUnifiedTopology: true, useNewUrlParser: true });
 var info;
 
-var tournamentRunning = true;
+var tournamentRunning = false;
+var canJoin = false;
 var myChannel;
 var myGuild;
+
+const syntaxRegex = /(^(((bizz|buzz|boom)(?!(.*\4))($| )){1,3})$(?<!\s))|(^\d+$)/is;
+
+var numToSay;
+var players;
+var turn;
 
 const tournament = new EventEmitter();
 
@@ -58,6 +66,23 @@ client.on('ready', () => {
             console.log("Successfuly fetched my channel.");
             myChannel = channel;
             channel.send("Bizz Buzz Boom Bot Is Online.");
+
+            //Get data
+            info.findOne({}, (err, game) => {
+                if (!err && game) {
+                    if (game.started) {
+                        tournamentRunning = true;
+                        players = game.players;
+                        turn = game.turn;
+                        numToSay = game.numToSay;
+                        announceTurn();
+                    }
+                }
+                else {
+                    myChannel.send("Could not load game.");
+                    console.error("Could not load game.");
+                }
+            });
             tournament.emit("connect");
         })
         .catch(() => {
@@ -65,6 +90,31 @@ client.on('ready', () => {
         });
 });
 
+function announceTurn() {
+    if (players.length > 1) {
+        myChannel.send("It is now " + myGuild.member(players[turn]).displayName + "'s turn.");
+    }
+    else {
+        //Game over. Update database
+        info.findOneAndUpdate(
+            {},
+            {
+                $set: {
+                    started: false
+                }
+            },
+            (err, res) => {
+                var whatToSayToPlayers = "Everyone except " + myGuild.member(players[0]).displayName + " is out. Game over!";
+                if (!err && res && res.ok) {
+                    tournamentRunning = false;
+                    myChannel.send(whatToSayToPlayers);
+                }
+                else {
+                    myChannel.send(whatToSayToPlayers + " Failed to update server.");
+                }
+            });
+    }
+}
 function updateRestartMessage(msg, minutesLeft, time) {
     setTimeout(() => {
         if (minutesLeft > 0) {
@@ -73,6 +123,7 @@ function updateRestartMessage(msg, minutesLeft, time) {
         else {
             msg.edit("Times up! You cannot join anymore. Starting game.");
             tournamentRunning = true;
+            canJoin = false;
 
             tournament.once("readyToStart", () => {
                 info.findOneAndUpdate(
@@ -80,12 +131,18 @@ function updateRestartMessage(msg, minutesLeft, time) {
                     {
                         $set: {
                             numToSay: 1,
+                            turn: 0,
+                            lastAnswer: "You are the first person to answer.",
                             started: true
                         }
                     },
                     (err, res) => {
                         if (!err && res && res.ok) {
                             if (res.value.players.length > 0) {
+                                numToSay = 1;
+                                turn = 0;
+                                players = res.value.players;
+
                                 var playerList = "";
                                 for (var i = 0; i < res.value.players.length; i++) {
                                     var player = myGuild.member(res.value.players[i]);
@@ -93,6 +150,8 @@ function updateRestartMessage(msg, minutesLeft, time) {
                                 };
 
                                 myChannel.send("Tournament has officially started." + "\n\n" + "Here is the order:" + "\n\n" + playerList);
+
+                                announceTurn();
                             }
                             else {
                                 myChannel.send("No one wins because no one joined. Tournament abandoned.");
@@ -134,12 +193,13 @@ tournament.once("connect", () => {
                         msg.channel.send("Loading...")
                             .then(msg => {
                                 tournamentRunning = false;
+                                canJoin = true;
 
                                 var startTime = Date.now();
-                                var minutesLeft = 5;
+                                var minutesLeft = 2;
                                 var iteration = 0;
                                 while (minutesLeft >= 0) {
-                                    updateRestartMessage(msg, minutesLeft, startTime + iteration * 1000 * 1);
+                                    updateRestartMessage(msg, minutesLeft, startTime + iteration * 1000 * 60);
                                     minutesLeft--;
                                     iteration++;
                                 }
@@ -152,7 +212,7 @@ tournament.once("connect", () => {
                 });
             }
             else if (msg.content.trim().toLowerCase() == "join") {
-                if (!tournamentRunning) {
+                if (canJoin) {
                     msg.reply("Attempting to add you to the game...");
 
                     //Set player status
@@ -190,8 +250,129 @@ tournament.once("connect", () => {
                     msg.reply("You are not allowed to join.");
                 }
             }
-            else {
-                msg.reply("Unkown Command");
+            else if (msg.content.trim().split(" ")[0].toLowerCase() == "answer") {
+                if (tournamentRunning) {
+                    if (players.includes(msg.author.id)) {
+                        if (players[turn] == msg.author.id) {
+                            var whatTheySaid = msg.content.substr(msg.content.indexOf(" ") + 1);
+                            //Check if what they said makes sense
+                            if (syntaxRegex.test(whatTheySaid)) {
+                                //Delete the message
+                                function deleteMessage() {
+                                    msg.delete({ reason: "So people can't cheat." });
+                                };
+
+                                //Check if they said it right
+                                if (say.checkMessage(whatTheySaid, numToSay)) {
+                                    //Update the database
+                                    info.findOneAndUpdate(
+                                        {},
+                                        {
+                                            $set: {
+                                                turn: turn + 1 < players.length ? turn + 1 : 0,
+                                                lastAnswer: myGuild.member(msg.author.id).displayName + " said " + whatTheySaid + "."
+                                            },
+                                            $inc: {
+                                                numToSay: 1
+                                            }
+                                        },
+                                        {
+                                            returnOriginal: false
+                                        },
+                                        (err, res) => {
+                                            if (!err && res && res.ok) {
+                                                turn = res.value.turn;
+                                                numToSay = res.value.numToSay;
+                                                msg.reply("That is correct.");
+                                                deleteMessage();
+                                                announceTurn();
+                                            }
+                                            else {
+                                                msg.reply("Failed to update number.");
+                                            }
+                                        });
+                                }
+                                else {
+                                    //Update the database
+                                    var newPlayers = Array.from(players);
+                                    newPlayers.splice(newPlayers.indexOf(msg.author.id), 1);
+                                    var newTurn = turn;
+                                    if (turn == newPlayers.length) {
+                                        newTurn = 0;
+                                    }
+                                    info.findOneAndUpdate(
+                                        {},
+                                        {
+                                            $set: {
+                                                players: newPlayers,
+                                                turn: newTurn
+                                            }
+                                        },
+                                        { returnOriginal: false },
+                                        (err, res) => {
+                                            if (!err && res && res.ok) {
+                                                players = newPlayers;
+                                                turn = newTurn;
+                                                msg.reply("Unfortunately, that is incorrect.");
+                                                myChannel.send(myGuild.member(msg.author.id).displayName + " is out because they answered incorrectly.");
+                                                deleteMessage();
+                                                announceTurn();
+                                            }
+                                            else {
+                                                msg.reply("Failed to update number.");
+                                            }
+                                        });
+                                }
+                            }
+                            else {
+                                msg.reply("Bad snytax.");
+                            }
+                        }
+                        else {
+                            msg.reply("It isn't your turn.");
+                        }
+                    }
+                    else {
+                        msg.reply("You aren't in the tournament.");
+                    }
+                }
+                else {
+                    msg.reply("Tournament isn't running");
+                }
+            } 
+            else if (msg.content.trim().toLowerCase() == "last") {
+                if (tournamentRunning) {
+                    if (players.includes(msg.author.id)) {
+                        if (players[turn] == msg.author.id) {
+                            //Get the last answer
+                            info.findOne({}, (err, game) => {
+                                if (!err && game) {
+                                    msg.reply(game.lastAnswer);
+                                }
+                                else {
+                                    msg.reply("Failed to retrieve last answer.");
+                                }
+                            });
+                        }
+                        else {
+                            msg.reply("It isn't your turn.");
+                        }
+                    }
+                    else {
+                        msg.reply("You aren't in the tournament.");
+                    }
+                }
+                else {
+                    msg.reply("Tournament isn't running");
+                }
+            }
+            else if (msg.content.trim().toLowerCase() == "turn") {
+                if (tournamentRunning) {
+                    msg.reply("It is " + myGuild.member(players[turn]).displayName + "'s turn.");
+                }
+                else {
+                    msg.reply("Tournament isn't running");
+                }
             }
         }
     });
