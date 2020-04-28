@@ -2,14 +2,11 @@
 
 //Node.js Dependancies
 const EventEmitter = require('events').EventEmitter;
+const http = require('http');
 
 //Discord dependancies
 const Discord = require('discord.js');
-const client = new Discord.Client({
-    http: {
-        host: process.env.PORT
-    }
-});
+const client = new Discord.Client();
 
 //My dependancies
 const Secrets = require("./secrets")();
@@ -20,6 +17,16 @@ const MongoClient = require('mongodb').MongoClient;
 const uri = 'mongodb://' + Secrets.mongodbUsername + ':' + Secrets.mongodbPassword + "@" + Secrets.mongodbDomain;
 const mongoClient = new MongoClient(uri, { useUnifiedTopology: true, useNewUrlParser: true });
 var info;
+
+//Start server so that heroku doesn't automatically close app
+if (process.env.PORT) {
+    const server = http.createServer((req, res) => {
+        res.writeHead(200);
+        res.end("Link to GitHub: https://github.com/ChocolateLoverRaj/Bizz-Buzz-Boom-Bot");
+    });
+    server.listen(process.env.PORT);
+    console.log("Empty http server listening on port " + process.env.PORT + ".");
+}
 
 var tournamentRunning = false;
 var canJoin = false;
