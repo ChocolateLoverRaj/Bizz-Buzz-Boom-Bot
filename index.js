@@ -75,6 +75,7 @@ client.on('ready', () => {
                         players = game.players;
                         turn = game.turn;
                         numToSay = game.numToSay;
+                        announceTurn();
                     }
                 }
                 else {
