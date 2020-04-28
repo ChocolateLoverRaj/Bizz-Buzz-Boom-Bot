@@ -358,6 +358,14 @@ tournament.once("connect", () => {
                     msg.reply("Tournament isn't running");
                 }
             }
+            else if (msg.content.trim().toLowerCase() == "turn") {
+                if (tournamentRunning) {
+                    msg.reply("It is " + myGuild.member(players[turn]).displayName + "'s turn.");
+                }
+                else {
+                    msg.reply("Tournament isn't running");
+                }
+            }
         }
     });
 });
