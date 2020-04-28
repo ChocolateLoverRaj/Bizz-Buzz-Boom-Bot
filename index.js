@@ -257,13 +257,13 @@ tournament.once("connect", () => {
                             var whatTheySaid = msg.content.substr(msg.content.indexOf(" ") + 1);
                             //Check if what they said makes sense
                             if (syntaxRegex.test(whatTheySaid)) {
+                                //Delete the message
+                                function deleteMessage() {
+                                    msg.delete({ reason: "So people can't cheat." });
+                                };
+
                                 //Check if they said it right
                                 if (say.checkMessage(whatTheySaid, numToSay)) {
-                                    //Delete the message
-                                    function deleteMessage() {
-                                        msg.delete({ reason: "So people can't cheat." });
-                                    };
-
                                     //Update the database
                                     info.findOneAndUpdate(
                                         {},
