@@ -5,7 +5,11 @@ const EventEmitter = require('events').EventEmitter;
 
 //Discord dependancies
 const Discord = require('discord.js');
-const client = new Discord.Client();
+const client = new Discord.Client({
+    http: {
+        host: process.env.PORT
+    }
+});
 
 //My dependancies
 const Secrets = require("./secrets")();
