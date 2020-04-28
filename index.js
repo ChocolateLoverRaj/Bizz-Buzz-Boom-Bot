@@ -2,6 +2,7 @@
 
 //Node.js Dependancies
 const EventEmitter = require('events').EventEmitter;
+const http = require('http');
 
 //Discord dependancies
 const Discord = require('discord.js');
@@ -16,6 +17,16 @@ const MongoClient = require('mongodb').MongoClient;
 const uri = 'mongodb://' + Secrets.mongodbUsername + ':' + Secrets.mongodbPassword + "@" + Secrets.mongodbDomain;
 const mongoClient = new MongoClient(uri, { useUnifiedTopology: true, useNewUrlParser: true });
 var info;
+
+//Start server so that heroku doesn't automatically close app
+if (process.env.PORT) {
+    const server = http.createServer((req, res) => {
+        res.writeHead(200);
+        res.end("Link to GitHub: https://github.com/ChocolateLoverRaj/Bizz-Buzz-Boom-Bot");
+    });
+    server.listen(process.env.PORT);
+    console.log("Empty http server listening on port " + process.env.PORT + ".");
+}
 
 var tournamentRunning = false;
 var canJoin = false;
