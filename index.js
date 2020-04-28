@@ -9,6 +9,7 @@ const client = new Discord.Client();
 
 //My dependancies
 const Secrets = require("./secrets")();
+const say = require("./say");
 
 //Mongodb dependancies
 const MongoClient = require('mongodb').MongoClient;
@@ -89,7 +90,28 @@ client.on('ready', () => {
 });
 
 function announceTurn() {
-    myChannel.send("It is now " + myGuild.member(players[turn]).displayName + "'s turn.");
+    if (players.length > 0) {
+        myChannel.send("It is now " + myGuild.member(players[turn]).displayName + "'s turn.");
+    }
+    else {
+        //Game over. Update database
+        info.findOneAndUpdate(
+            {},
+            {
+                $set: {
+                    started: false
+                }
+            },
+            (err, res) => {
+                if (!err && res && res.ok) {
+                    tournamentRunning = false;
+                    myChannel.send("Everyone is out. Game over.");
+                }
+                else {
+                    myChannel.send("Everyone is out. Game over. Failed to update server.");
+                }
+            });
+    }
 }
 function updateRestartMessage(msg, minutesLeft, time) {
     setTimeout(() => {
@@ -225,23 +247,86 @@ tournament.once("connect", () => {
                     msg.reply("You are not allowed to join.");
                 }
             }
-            else {
+            else if (msg.content.trim().split(" ")[0].toLowerCase() == "answer") {
                 if (tournamentRunning) {
                     if (players.includes(msg.author.id)) {
-                        //Check if what they said makes sense
-                        if (syntaxRegex.test(msg.content.trim())) {
-                            msg.reply("Good syntax.");
+                        if (players[turn] == msg.author.id) {
+                            var whatTheySaid = msg.content.substr(msg.content.indexOf(" ") + 1);
+                            //Check if what they said makes sense
+                            if (syntaxRegex.test(whatTheySaid)) {
+                                //Check if they said it right
+                                if (say.checkMessage(whatTheySaid, numToSay)) {
+                                    //Update the database
+                                    info.findOneAndUpdate(
+                                        {},
+                                        {
+                                            $set: {
+                                                turn: turn + 1 < players.length ? turn + 1 : 0
+                                            },
+                                            $inc: {
+                                                numToSay: 1
+                                            }
+                                        },
+                                        {
+                                            returnOriginal: false
+                                        },
+                                        (err, res) => {
+                                            if (!err && res && res.ok) {
+                                                turn = res.value.turn;
+                                                numToSay = res.value.numToSay;
+                                                msg.reply("That is correct.");
+                                                announceTurn();
+                                            }
+                                            else {
+                                                msg.reply("Failed to update number.");
+                                            }
+                                        });
+                                }
+                                else {
+                                    //Update the database
+                                    var newPlayers = Array.from(players);
+                                    newPlayers.splice(newPlayers.indexOf(msg.author.id), 1);
+                                    var newTurn = turn;
+                                    if (turn == newPlayers.length) {
+                                        newTurn = 0;
+                                    }
+                                    info.findOneAndUpdate(
+                                        {},
+                                        {
+                                            $set: {
+                                                players: newPlayers,
+                                                turn: newTurn
+                                            }
+                                        },
+                                        { returnOriginal: false },
+                                        (err, res) => {
+                                            if (!err && res && res.ok) {
+                                                players = newPlayers;
+                                                turn = newTurn;
+                                                msg.reply("Unfortunately, that is incorrect.");
+                                                myChannel.send(myGuild.member(msg.author.id).displayName + " is out because they answered incorrectly.");
+                                                announceTurn();
+                                            }
+                                            else {
+                                                msg.reply("Failed to update number.");
+                                            }
+                                        });
+                                }
+                            }
+                            else {
+                                msg.reply("Bad snytax.");
+                            }
                         }
                         else {
-                            msg.reply("Bad snytax.");
+                            msg.reply("It isn't your turn.");
                         }
                     }
                     else {
-                        msg.delete("Because you are not part of the current tournament.");
+                        msg.reply("You aren't in the tournament.");
                     }
                 }
                 else {
-                    msg.reply("Unkown Command");
+                    msg.reply("Tournament isn't running");
                 }
             }
         }
