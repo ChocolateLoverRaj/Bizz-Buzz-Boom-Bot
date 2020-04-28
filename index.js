@@ -259,6 +259,11 @@ tournament.once("connect", () => {
                             if (syntaxRegex.test(whatTheySaid)) {
                                 //Check if they said it right
                                 if (say.checkMessage(whatTheySaid, numToSay)) {
+                                    //Delete the message
+                                    function deleteMessage() {
+                                        msg.delete({ reason: "So people can't cheat." });
+                                    };
+
                                     //Update the database
                                     info.findOneAndUpdate(
                                         {},
@@ -279,6 +284,7 @@ tournament.once("connect", () => {
                                                 turn = res.value.turn;
                                                 numToSay = res.value.numToSay;
                                                 msg.reply("That is correct.");
+                                                deleteMessage();
                                                 announceTurn();
                                             }
                                             else {
@@ -309,6 +315,7 @@ tournament.once("connect", () => {
                                                 turn = newTurn;
                                                 msg.reply("Unfortunately, that is incorrect.");
                                                 myChannel.send(myGuild.member(msg.author.id).displayName + " is out because they answered incorrectly.");
+                                                deleteMessage();
                                                 announceTurn();
                                             }
                                             else {
