@@ -3,6 +3,8 @@
 //Node.js Dependancies
 const EventEmitter = require('events').EventEmitter;
 const http = require('http');
+const worker_threads = require('worker_threads');
+new worker_threads.Worker("./coffee.js");
 
 //Discord dependancies
 const Discord = require('discord.js');
