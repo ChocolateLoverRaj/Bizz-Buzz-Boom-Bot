@@ -183,6 +183,79 @@ function updateRestartMessage(msg, minutesLeft, time) {
     }, time - Date.now());
 };
 
+function checkAnswer(msg, whatTheySaid) {
+    //Delete the message
+    function deleteMessage() {
+        if (deleteableMessage) {
+            deleteableMessage.delete({ reason: "So people can't cheat." });
+            deleteableMessage = undefined;
+        }
+        msg.delete({ reason: "So people can't cheat." });
+    };
+
+    //Check if they said it right
+    if (say.checkMessage(whatTheySaid, numToSay)) {
+        //Update the database
+        info.findOneAndUpdate(
+            {},
+            {
+                $set: {
+                    turn: turn + 1 < players.length ? turn + 1 : 0,
+                    lastAnswer: myGuild.member(msg.author.id).displayName + " said " + whatTheySaid + "."
+                },
+                $inc: {
+                    numToSay: 1
+                }
+            },
+            {
+                returnOriginal: false
+            },
+            (err, res) => {
+                if (!err && res && res.ok) {
+                    turn = res.value.turn;
+                    numToSay = res.value.numToSay;
+                    msg.reply("That is correct.");
+                    deleteMessage();
+                    announceTurn();
+                }
+                else {
+                    msg.reply("Failed to update number.");
+                }
+            });
+    }
+    else {
+        //Update the database
+        var newPlayers = Array.from(players);
+        newPlayers.splice(newPlayers.indexOf(msg.author.id), 1);
+        var newTurn = turn;
+        if (turn == newPlayers.length) {
+            newTurn = 0;
+        }
+        info.findOneAndUpdate(
+            {},
+            {
+                $set: {
+                    players: newPlayers,
+                    turn: newTurn
+                }
+            },
+            { returnOriginal: false },
+            (err, res) => {
+                if (!err && res && res.ok) {
+                    players = newPlayers;
+                    turn = newTurn;
+                    msg.reply("Unfortunately, that is incorrect.");
+                    myChannel.send(myGuild.member(msg.author.id).displayName + " is out because they answered incorrectly.");
+                    deleteMessage();
+                    announceTurn();
+                }
+                else {
+                    msg.reply("Failed to update number.");
+                }
+            });
+    }
+}
+
 var deleteableMessage;
 
 tournament.once("connect", () => {
@@ -315,76 +388,7 @@ tournament.once("connect", () => {
                             var whatTheySaid = msg.content.substr(msg.content.indexOf(" ") + 1);
                             //Check if what they said makes sense
                             if (syntaxRegex.test(whatTheySaid)) {
-                                //Delete the message
-                                function deleteMessage() {
-                                    if (deleteableMessage) {
-                                        deleteableMessage.delete({ reason: "So people can't cheat." });
-                                        deleteableMessage = undefined;
-                                    }
-                                    msg.delete({ reason: "So people can't cheat." });
-                                };
-
-                                //Check if they said it right
-                                if (say.checkMessage(whatTheySaid, numToSay)) {
-                                    //Update the database
-                                    info.findOneAndUpdate(
-                                        {},
-                                        {
-                                            $set: {
-                                                turn: turn + 1 < players.length ? turn + 1 : 0,
-                                                lastAnswer: myGuild.member(msg.author.id).displayName + " said " + whatTheySaid + "."
-                                            },
-                                            $inc: {
-                                                numToSay: 1
-                                            }
-                                        },
-                                        {
-                                            returnOriginal: false
-                                        },
-                                        (err, res) => {
-                                            if (!err && res && res.ok) {
-                                                turn = res.value.turn;
-                                                numToSay = res.value.numToSay;
-                                                msg.reply("That is correct.");
-                                                deleteMessage();
-                                                announceTurn();
-                                            }
-                                            else {
-                                                msg.reply("Failed to update number.");
-                                            }
-                                        });
-                                }
-                                else {
-                                    //Update the database
-                                    var newPlayers = Array.from(players);
-                                    newPlayers.splice(newPlayers.indexOf(msg.author.id), 1);
-                                    var newTurn = turn;
-                                    if (turn == newPlayers.length) {
-                                        newTurn = 0;
-                                    }
-                                    info.findOneAndUpdate(
-                                        {},
-                                        {
-                                            $set: {
-                                                players: newPlayers,
-                                                turn: newTurn
-                                            }
-                                        },
-                                        { returnOriginal: false },
-                                        (err, res) => {
-                                            if (!err && res && res.ok) {
-                                                players = newPlayers;
-                                                turn = newTurn;
-                                                msg.reply("Unfortunately, that is incorrect.");
-                                                myChannel.send(myGuild.member(msg.author.id).displayName + " is out because they answered incorrectly.");
-                                                deleteMessage();
-                                                announceTurn();
-                                            }
-                                            else {
-                                                msg.reply("Failed to update number.");
-                                            }
-                                        });
-                                }
+                                checkAnswer(msg, whatTheySaid);
                             }
                             else {
                                 msg.reply("Bad snytax.");
@@ -401,7 +405,7 @@ tournament.once("connect", () => {
                 else {
                     msg.reply("Tournament isn't running");
                 }
-            } 
+            }
             else if (msg.content.trim().toLowerCase() == "last") {
                 if (tournamentRunning) {
                     if (players.includes(msg.author.id)) {
@@ -440,6 +444,11 @@ tournament.once("connect", () => {
                 }
                 else {
                     msg.reply("Tournament isn't running");
+                }
+            }
+            else {
+                if (tournamentRunning && players[turn] == msg.author.id && syntaxRegex.test(msg.content.trim())) {
+                    checkAnswer(msg, msg.content.trim());
                 }
             }
         }
