@@ -181,6 +181,8 @@ function updateRestartMessage(msg, minutesLeft, time) {
     }, time - Date.now());
 };
 
+var deleteableMessage;
+
 tournament.once("connect", () => {
     client.on('message', msg => {
         //Check that the message isn't from us and it's in our channel
@@ -270,6 +272,10 @@ tournament.once("connect", () => {
                             if (syntaxRegex.test(whatTheySaid)) {
                                 //Delete the message
                                 function deleteMessage() {
+                                    if (deleteableMessage) {
+                                        deleteableMessage.delete({ reason: "So people can't cheat." });
+                                        deleteableMessage = undefined;
+                                    }
                                     msg.delete({ reason: "So people can't cheat." });
                                 };
 
@@ -358,7 +364,13 @@ tournament.once("connect", () => {
                             //Get the last answer
                             info.findOne({}, (err, game) => {
                                 if (!err && game) {
-                                    msg.reply(game.lastAnswer);
+                                    msg.reply(game.lastAnswer)
+                                        .then(msg => {
+                                            deleteableMessage = msg;
+                                        })
+                                        .catch(e => {
+                                            console.log(e);
+                                        });
                                 }
                                 else {
                                     msg.reply("Failed to retrieve last answer.");
