@@ -36,7 +36,7 @@ var myGuild;
 const syntaxRegex = /(^(((bizz|buzz|boom)(?!(.*\4))($| )){1,3})$(?<!\s))|(^\d+$)/is;
 
 var numToSay;
-var players;
+var players = [];
 var turn;
 
 const tournament = new EventEmitter();
@@ -242,10 +242,14 @@ tournament.once("connect", () => {
                                 players: msg.author.id
                             }
                         },
+                        {
+                            returnOriginal: false
+                        },
                         (err, res) => {
                             if (!err && res) {
                                 if (res.lastErrorObject.n == 1) {
-                                    myChannel.send(msg.author.username + " has joined the tournament.");
+                                    players = res.value.players;
+                                    myChannel.send(myGuild.member(msg.author.id).displayName + " has joined the tournament.");
                                 }
                                 else {
                                     msg.reply("You are already registered in the tournament.");
@@ -261,6 +265,45 @@ tournament.once("connect", () => {
                 }
                 else {
                     msg.reply("You are not allowed to join.");
+                }
+            }
+            else if (msg.content.trim().toLowerCase() == "leave") {
+                if (canJoin) {
+                    if (players.indexOf(msg.author.id) > -1) {
+                        //Set player status
+                        tournament.emit("players", false);
+
+                        var newPlayers = Array.from(players);
+                        newPlayers.splice(newPlayers.indexOf(msg.author.id), 1);
+                        info.findOneAndUpdate(
+                            {},
+                            {
+                                $set: {
+                                    players: newPlayers
+                                }
+                            },
+                            {
+                                returnOriginal: false
+                            },
+                            (err, res) => {
+                                if (!err && res) {
+                                    players = newPlayers;
+                                    myChannel.send(myGuild.member(msg.author.id).displayName + " has left the tournament.");
+                                }
+                                else {
+                                    msg.reply("Failed to join you.");
+                                }
+
+                                //Set player status
+                                tournament.emit("players", true);
+                            });
+                    }
+                    else {
+                        msg.reply("You aren't in the tournament.");
+                    }
+                }
+                else {
+                    msg.reply("You are not allowed to leave or join.");
                 }
             }
             else if (msg.content.trim().split(" ")[0].toLowerCase() == "answer") {
