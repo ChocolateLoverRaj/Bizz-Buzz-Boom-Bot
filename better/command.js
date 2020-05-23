@@ -12,13 +12,17 @@ module.exports = class {
     command(names, discription, shortFlags, handler) {
         if (typeof discription === 'string' && shortFlags instanceof Map && typeof handler === 'function' && handler.length === 2) {
             var smartHandler = function (args, sFlags, fFlags) {
+                var fullFormedFlags = new Map();
                 sFlags.forEach(flag => {
                     if (shortFlags.has(flag.name)) {
                         flag.name = shortFlags.get(flag.name);
-                        fFlags[flag] = flag;
+                        fullFormedFlags.set(flag.name, flag.value);
                     }
                 });
-                handler(args, fFlags);
+                fFlags.forEach(flag => {
+                    fullFormedFlags.set(flag.name, flag.value);
+                });
+                handler(args, fullFormedFlags);
             }
             if (typeof names === 'string') {
                 this.commands.set(names, smartHandler);
@@ -68,19 +72,26 @@ module.exports = class {
                     }
                     else{
                         //TODO Add the flag and figure out if it's the short regex or the full regex and add it.
-                        rest = rest.substring(match.index, match.index + match[0].length);
+                        var flag = match[0].split('=');
+                        if(match[0].includes('--')){
+                            fullFlags.push({name: flag[0].substring(2), value: flag[1]});
+                        }
+                        else{
+                            shortFlags.push({name: flag[0].substring(1), value: flag[1]});
+                        }
+                        rest = rest.substring(match.index + match[0].length);
                     }
                 }
                 this.commands.get(foundStr)(args, shortFlags, fullFlags);
             }
             else {
                 //TODO help command
-                console.log("unknown command.");
+                //console.log("unknown command.");
             }
         }
         else {
             //TODO add a help feature.
-            console.log("baaad")
+            //console.log("baaad")
         }
     }
 }

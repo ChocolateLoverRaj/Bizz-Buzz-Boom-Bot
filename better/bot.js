@@ -16,7 +16,7 @@ const client = new Discord.Client();
 const command = new Command();
 
 command.command(["create", "new"], "Create a game.", new Map().set("f", "fun"), (args, flags) => {
-    console.log("they want me to create a game for them.", flags, args);
+    console.log("f", flags.get("fun"));
 });
 
 //Handle message
