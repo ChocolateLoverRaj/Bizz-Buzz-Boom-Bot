@@ -12,7 +12,8 @@ const defaultConfig = {
                 2: "bizz",
                 3: "buzz",
                 5: "boom"
-            }
+            },
+            time: 60
         }
     },
     database: "heroku_w8wxzsb7"
