@@ -45,25 +45,34 @@ manager.command("preset", "Create a preset. Example: preset normal --mapping=2:b
         };
         var presets = mongodbhelper.collection("bizz-buzz-boom-presets");
         switch (exists) {
-            case "update":
-                //TODO update
-                break;
-            case "override":
-                //TODO ovveride
+            case "replace":
+                presets.findOneAndReplace({ name: presetName }, { $set: preset }, { upsert: true, returnOriginal: true }, (err, res) => {
+                    if (!err && res && res.ok) {
+                        if(res.value === null){
+                            msg.reply("Successfully added preset.");
+                        }
+                        else{
+                            msg.reply("Successfully replaced preset.");
+                        }
+                    }
+                    else{
+                        msg.reply("Error saving preset.");
+                    }
+                });
                 break;
             case "cancel":
-                presets.findOne({name: presetName}, (err, res) => {
-                    if(res === null){
+                presets.findOne({ name: presetName }, (err, res) => {
+                    if (res === null) {
                         presets.insertOne(preset, (err, res) => {
-                            if(!err && res && res.result.ok){
-                                msg.reply("Successfully saved preset.");
+                            if (!err && res && res.result.ok) {
+                                msg.reply("Successfully added preset.");
                             }
-                            else{
+                            else {
                                 msg.reply("Error saving preset.");
                             }
                         });
                     }
-                    else{
+                    else {
                         msg.reply("Canceled creating preset; preset with that name already exists.");
                     }
                 });
