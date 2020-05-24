@@ -18,9 +18,10 @@ const bot = {};
 const client = new Discord.Client();
 
 //Handle message
-client.on('message', msg => {
+client.on('message', async msg => {
     switch(msg.channel.id){
         case config.channels.bizzBuzzBoom:
+            //console.log(msg.cleanContent)
             bizzBuzzBoom.input(msg);
             break;
     }
