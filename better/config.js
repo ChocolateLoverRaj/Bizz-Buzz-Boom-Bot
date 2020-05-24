@@ -5,11 +5,14 @@ const defaultConfig = {
     channels: {
         bizzBuzzBoom: "703279246562557973"
     },
-    bizzBuzzBoom:{
+    bizzBuzzBoom: {
         defaultPreset: {
-            2: "bizz",
-            3: "buzz",
-            5: "boom"
+            name: "classic",
+            mapping: {
+                2: "bizz",
+                3: "buzz",
+                5: "boom"
+            }
         }
     },
     database: "heroku_w8wxzsb7"
