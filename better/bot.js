@@ -5,23 +5,25 @@
 const Discord = require("discord.js");
 
 //My Modules
+//Utilities
 const secrets = require("./secrets")();
-const Command = require("./command");
+const config = require("./config");
+
+//Games
+const bizzBuzzBoom = require("./games/bizz buzz boom");
 
 //Bot module
 const bot = {};
 
 const client = new Discord.Client();
 
-const command = new Command();
-
-command.command(["create", "new"], "Create a game.", new Map().set("f", "fun"), (args, flags) => {
-    console.log("f", flags.get("fun"));
-});
-
 //Handle message
 client.on('message', msg => {
-    command.input(msg);
+    switch(msg.channel.id){
+        case config.channels.bizzBuzzBoom:
+            bizzBuzzBoom.input(msg);
+            break;
+    }
 });
 
 //Init

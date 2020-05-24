@@ -27,23 +27,21 @@ coffee.wakeUp = function () {
 }
 
 //Start loop if in production
-coffee.init = function () {
-    return new Promise((resolve, reject) => {
-        if (config.production) {
-            const server = http.createServer((req, res) => {
-                res.writeHead(200);
-                res.setHeader("contentType", "text/html");
-                res.end(`<h1>Link to GitHub: </a href="${config.githubLink}">${config.githubLink}</h1>`);
-            })
-            server.listen(process.env.PORT, () => {
-                resolve(true);
-            });
-            setTimeout(coffee.wakeUp, 1000 * 60);
-        }
-        else{
-            resolve(false);
-        }
-    });
+coffee.init = async function () {
+    if (config.production) {
+        const server = http.createServer((req, res) => {
+            res.writeHead(200);
+            res.setHeader("contentType", "text/html");
+            res.end(`<h1>Link to GitHub: </a href="${config.githubLink}">${config.githubLink}</h1>`);
+        })
+        server.listen(process.env.PORT, () => {
+            return true;
+        });
+        setTimeout(coffee.wakeUp, 1000 * 60);
+    }
+    else {
+        return false;
+    }
 };
 
 //Export the module

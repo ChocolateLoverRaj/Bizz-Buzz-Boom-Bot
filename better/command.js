@@ -1,17 +1,31 @@
 //Handles commands, like npm's commands.
 
-const inputRegex = /^((^| )([a-zA-Z]+))+(\s*((-[a-zA-Z](=\w+)?)|(--[a-zA-Z]+(=\w+)?)|([a-zA-Z]+))|)*$/s;
-const flagRemoveRegex = /((-[a-zA-Z](=\w+)?)|(--[a-zA-Z]+(=\w+)?))/gs;
-const flagRegex = /((-[a-zA-Z](=\w+)?)|(--[a-zA-Z]+(=\w+)?))/s;
+//Dependancies
+const Discord = require('discord.js');
+
+const inputRegex = /^((^| )([a-zA-Z]+))+(\s*((-[a-zA-Z](=[\w:,]+)?)|(--[a-zA-Z]+(=[\w:,]+)?)|([a-zA-Z]+))|)*$/s;
+const flagRemoveRegex = /((-[a-zA-Z](=[\w:,]+)?)|(--[a-zA-Z]+(=[\w:,]+)?))/gs;
+const flagRegex = /((-[a-zA-Z](=[\w:,]+)?)|(--[a-zA-Z]+(=[\w:,]+)?))/s;
 
 //Command class to export
 module.exports = class {
-    constructor() {
+    constructor(helpCommand = true) {
         this.commands = new Map();
+        if(helpCommand){
+            var commandMap = this.commands;
+            this.command("help", "Displays this list of commands.", undefined, function(msg, args, flags){
+                var embed = new Discord.MessageEmbed();
+                embed.setTitle("Bizz Buzz Boom Bot Commands.");
+                for(const [key, value] of commandMap.entries()){
+                    embed.addField(key, value.discription);
+                }
+                msg.reply(embed);
+            });
+        }
     }
-    command(names, discription, shortFlags, handler) {
-        if (typeof discription === 'string' && shortFlags instanceof Map && typeof handler === 'function' && handler.length === 2) {
-            var smartHandler = function (args, sFlags, fFlags) {
+    command(names, discription, shortFlags = new Map(), handler) {
+        if (typeof discription === 'string' && shortFlags instanceof Map && typeof handler === 'function' && handler.length === 3) {
+            var smartHandler = function (msg, args, sFlags, fFlags) {
                 var fullFormedFlags = new Map();
                 sFlags.forEach(flag => {
                     if (shortFlags.has(flag.name)) {
@@ -22,14 +36,18 @@ module.exports = class {
                 fFlags.forEach(flag => {
                     fullFormedFlags.set(flag.name, flag.value);
                 });
-                handler(args, fullFormedFlags);
+                handler(msg, args, fullFormedFlags);
+            };
+            var commandValue = {
+                handler: smartHandler,
+                discription: discription
             }
             if (typeof names === 'string') {
-                this.commands.set(names, smartHandler);
+                this.commands.set(names, commandValue);
             }
             else if (names instanceof Array) {
                 names.forEach(name => {
-                    this.commands.set(name, smartHandler);
+                    this.commands.set(name, commandValue);
                 });
             }
             else {
@@ -39,6 +57,7 @@ module.exports = class {
         else {
             throw new TypeError("Invalid arguements.");
         }
+        return this;
     }
     input(msg) {
         var content = msg.content.trim();
@@ -71,7 +90,6 @@ module.exports = class {
                         break;
                     }
                     else{
-                        //TODO Add the flag and figure out if it's the short regex or the full regex and add it.
                         var flag = match[0].split('=');
                         if(match[0].includes('--')){
                             fullFlags.push({name: flag[0].substring(2), value: flag[1]});
@@ -82,16 +100,9 @@ module.exports = class {
                         rest = rest.substring(match.index + match[0].length);
                     }
                 }
-                this.commands.get(foundStr)(args, shortFlags, fullFlags);
-            }
-            else {
-                //TODO help command
-                //console.log("unknown command.");
+                this.commands.get(foundStr).handler(msg, args, shortFlags, fullFlags);
             }
         }
-        else {
-            //TODO add a help feature.
-            //console.log("baaad")
-        }
+        return this;
     }
 }
