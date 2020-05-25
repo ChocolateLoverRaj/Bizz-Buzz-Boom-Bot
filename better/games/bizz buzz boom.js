@@ -8,6 +8,7 @@ const Discord = require('discord.js');
 const CommandManager = require("../command");
 const mongodbhelper = require("../mongodbhelper");
 const config = require("../config");
+const image = require("../image");
 
 const manager = new CommandManager();
 
@@ -235,14 +236,7 @@ manager.command("leave", "Leave a game.", undefined, (msg, args, flags) => {
 
 manager.command("players", "List players in a game.", undefined, (msg, args, flags) => {
     if(gameCreated){
-        var embed = new Discord.MessageEmbed();
-        embed.setTitle("Bizz Buzz Boom Players.");
-        //embed.setAuthor("HI", msg.author.avatarURL());
-        players.forEach((player, index) => {
-            embed.addField(index + 1, msg.guild.member(player).displayName);
-            embed.addField("image", msg.author.displayAvatarURL());
-        });
-        msg.reply(embed);
+        
     }
     else{
         msg.reply("Game hasn't been created yet.");
