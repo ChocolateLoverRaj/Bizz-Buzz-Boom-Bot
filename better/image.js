@@ -1,13 +1,8 @@
 //Create images
-const textToImage = require('text-to-image');
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas, loadImage, Image } = require('canvas');
 const fs = require('fs');
 const fsPromises = fs.promises;
-const { promisify } = require('util');
-const sizeOf = promisify(require('image-size'));
-const https = require('https');
 const path = require('path');
-const secrets = require("../secrets")();
 
 //Image module
 const lib = {};
@@ -17,88 +12,67 @@ const finalImagePath = "./res/output.png";
 
 //Uri to png
 lib.uriToPng = function (uri) {
-    return new Buffer(uri.split(',')[1], 'base64')
+    return new Buffer.from(uri.split(',')[1], 'base64');
 }
+
+//Ctx for testing
+const testCtx = createCanvas(1, 1).getContext('2d');
+testCtx.font = "32px Sans";
+testCtx.fillStyle = "green";
 
 //Create player list
 lib.createPlayerList = async function (players) {
-    async function webpToPng(webpUrl, pngUrl){
-        var data = {
-            input: "url",
-            file: webpUrl,
-            outputformat: "png",
-            apikey: secrets.convertioKey
-        };
-        var stringData = JSON.stringify(data);
-        var options = {
-            hostname: "api.convertio.co",
-            path: "/convert",
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Content-Length": stringData.length
-            }
-        };
-        var req = https.request(options, res => {
-            console.log(res.statusCode);
-            console.log(data, secrets)
-            var stringBody = "";
-            res.on('data', data => {
-                stringBody += data;
-            });
-            res.on('end', () => {
-                var body = JSON.parse(stringBody);
-                console.log(body);
-                var id = body.data.id;
-                https.request(`http://api.convertio.co/convert/${id}/dl`, res => {
-                    console.log(res.statusCode);
-                    var stringBody = "";
-                    res.on('data', data => {
-                        stringBody += data;
-                    });
-                    res.on('end', async () => {
-                        var body = JSON.parse(stringBody);
-                        await fsPromises.writeFile(pngUrl, lib.uriToPng(body.data.content));
-                    });
-                });
-            });
-        });
-        req.end(stringData);
+    var maxWidth = Math.max.apply(undefined, players.map(getNameWidth));
+    var canvas = createCanvas(64 + 16 + maxWidth, players.length * (64 + 16));
+    var ctx = canvas.getContext('2d');
+
+    ctx.font = "32px Sans";
+    ctx.fillStyle = "green";
+
+    async function drawPngImage(player) {
+        var cachePath = path.join(__dirname, `./cache/${player.id}.png`);
+        var cache = await fsPromises.stat(cachePath);
+        var url;
+        if(cache.isFile()){
+            url = cachePath;
+        }
+        else{
+            url = player.url.replace(path.extname(player.url), ".png?size=64");
+        }
+        console.log(url);
+        return await loadImage(url);
     };
 
-    players.forEach(async (player, index) => {
-        https.get(player.url, async res => {
-            var tempImagePath = path.join(__dirname, "./res/temp" + path.extname(player.url));
-            console.log(tempImagePath)
-            await res.pipe(fs.createWriteStream(tempImagePath));
-            switch (path.extname(player.url)){
-                case '.png':
-                    break;
-                case '.webp':
-                    var pngTempImagePath = path.join(__dirname, "./res/temp.png");
-                    await webpToPng(tempImagePath, pngTempImagePath);
-                    tempImagePath = pngTempImagePath;
-                    break
-                default:
-                    throw new Error("Unknown Extension: ", player.url);
-            }
-            var canvas = createCanvas(256, 256);
-            var ctx = canvas.getContext('2d');
-            var image = await loadImage(tempImagePath);
-            ctx.drawImage(image, 0, 0, 256, 256);
-            await fsPromises.writeFile(path.join(__dirname, `./res/test${index}.png`), lib.uriToPng(canvas.toDataURL()));
-        });
-    });
+    function getNameWidth(player) {
+        console.log(testCtx.measureText(player.name).width, player.name)
+        return testCtx.measureText(player.name).width;
+    }
+
+    var images = await Promise.all(players.map(drawPngImage));
+    for (var i = 0; i < players.length; i++) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(32, (64 + 16) * i + 32, 32, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(images[i], 0, (64 + 16) * i, 64, 64);
+        ctx.restore();
+        ctx.fillText(players[i].name, 64 + 16, 48 + (64 + 16) * i);
+    }
+    await fsPromises.writeFile("./res/canvas.png", lib.uriToPng(canvas.toDataURL()));
+    console.log("done making player list", canvas.width, canvas.height, maxWidth);
 }
 
 lib.createPlayerList([
     {
         url: "https://cdn.discordapp.com/embed/avatars/4.png",
-        name: "<programmer>Rajas</programmer>"
+        name: "<programmer>Rajas</programmer>",
+        id: "a"
     },
     {
         url: "https://cdn.discordapp.com/avatars/539505577286434816/bd289c17a1dff59e88df42b73bde2c22.webp",
-        name: "Secynt"
+        name: "Secynt",
+        id: "b"
     }
 ]);
 

@@ -8,7 +8,6 @@ const secretsPath = path.join(__dirname, "./secrets.json");
 //The function to export
 module.exports = function () {
     if (fs.existsSync(secretsPath)) {
-        console.log(require("./secrets.json"))
         return require("./secrets.json");
     }
     else {

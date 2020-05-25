@@ -21,6 +21,7 @@
     "canvas": "^2.6.1",
     "discord.js": "^12.2.0",
     "image-size": "^0.8.3",
+    "jsdom": "^16.2.2",
     "mongodb": "^3.5.6",
     "text-to-image": "^2.3.0",
     "webp-converter": "^2.2.3"
