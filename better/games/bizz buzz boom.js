@@ -20,6 +20,7 @@ var gamePreset;
 var gameLeader;
 var gameStarted = false;
 var players = [];
+var playersEmbed = false;
 
 const presetMap = new Map()
     .set("m", "mapping")
@@ -169,6 +170,7 @@ manager.command("create", "Create a game. Example: create --preset=myPreset --ab
             gameLeader = msg.author.id;
             gameStarted = false;
             players = [msg.author.id];
+            playersEmbed = false;
             msg.reply("Created game. You have joined automatically because you are the leader. To start the game, use the \`start\` command.");
             msg.channel.send("Who wants to play some Bizz Buzz Boom? Use the \`join\` command.");
         }
@@ -184,6 +186,7 @@ manager.command("join", "Join the game.", undefined, (msg, args, flags) => {
             var id = msg.author.id, nick = msg.guild.member(msg.author.id).displayName;
             if (!players.includes(id)) {
                 players.push(id);
+                playersEmbed = false;
                 msg.reply("Added you to the game.");
             }
             else {
@@ -200,72 +203,102 @@ manager.command("join", "Join the game.", undefined, (msg, args, flags) => {
 });
 
 manager.command("leave", "Leave a game.", undefined, (msg, args, flags) => {
-    if(gameCreated){
+    if (gameCreated) {
         var id = msg.author.id;
-        if(players.includes(id)){
-            if(gameStarted){
-                if(gamePreset.quit){
+        if (players.includes(id)) {
+            if (gameStarted) {
+                if (gamePreset.quit) {
                     leave();
                 }
-                else{
+                else {
                     msg.reply("You cannot leave because the game rules forbid you to leave after the game starts.");
                 }
             }
-            else{
-                leave();
+            else {
+                if (gameLeader !== msg.author.id) {
+                    leave();
+                }
+                else {
+                    msg.reply("You are the game leader. You cannot leave because if you do others cannot start the game. To abandom the game, use the \`abandom\` command.");
+                }
             }
-            function leave(){
+            function leave() {
                 var newPlayers = [];
                 players.forEach(player => {
-                    if(player !== id){
+                    if (player !== id) {
                         newPlayers.push(player);
                     }
                 });
                 players = newPlayers;
+                playersEmbed = false;
                 msg.reply("Successfully removed you from the game.");
             }
         }
-        else{
+        else {
             msg.reply("You aren't in a game.");
         }
     }
-    else{
+    else {
         msg.reply("Cannot leave game; there is no game.");
     }
 });
 
 manager.command("players", "List players in a game.", undefined, (msg, args, flags) => {
-    if(gameCreated){
-        
+    if (gameCreated) {
+        if (!playersEmbed) {
+            function createPlayer(id) {
+                var member = msg.guild.member(id);
+                return {
+                    name: member.displayName,
+                    id: id,
+                    color: member.displayHexColor,
+                    url: member.user.displayAvatarURL()
+                };
+            }
+            image.createPlayerList(players.map(createPlayer))
+                .then(url => {
+                    var embed = new Discord.MessageEmbed()
+                        .setTitle("Bizz Buzz Boom Players.")
+                        .setImage(url);
+                    playersEmbed = embed;
+                    msg.reply(embed);
+                })
+                .catch(err => {
+                    msg.reply("Couldn't get players image.");
+                });
+        }
+        else {
+            msg.reply(playersEmbed);
+        }
     }
-    else{
+    else {
         msg.reply("Game hasn't been created yet.");
     }
 });
 
 manager.command("start", "Start a game.", undefined, (msg, args, flags) => {
-    if(gameCreated){
-        if(!gameStarted){
+    if (gameCreated) {
+        if (!gameStarted) {
             var id = msg.author.id;
-            if(players.includes(id)){
-                if(gameLeader === id){
+            if (players.includes(id)) {
+                if (gameLeader === id) {
                     gameStarted = true;
                     msg.reply("Starting game... Feature yet to be made though.");
                 }
-                else{
+                else {
                     msg.reply("You must be the game leader to start the game.");
                     msg.channel.send(`<@${gameLeader}>, Players are requesting you to start the game.`);
                 }
             }
-            else{
+            else {
                 msg.reply("You aren't in the game. Use the \`join\` command to join the game.");
             }
-        }   
-        else{
+        }
+        else {
             msg.reply("The game has already been started.");
         }
     }
-    else{
+    else {
         msg.reply("There is no game.");
     }
 });

@@ -1,8 +1,11 @@
 //Create images
-const { createCanvas, loadImage, Image } = require('canvas');
+const { createCanvas, loadImage } = require('canvas');
 const fs = require('fs');
 const fsPromises = fs.promises;
 const path = require('path');
+const https = require('https');
+const secrets = require('./secrets')();
+const cloudinary = require('cloudinary').v2;
 
 //Image module
 const lib = {};
@@ -18,7 +21,27 @@ lib.uriToPng = function (uri) {
 //Ctx for testing
 const testCtx = createCanvas(1, 1).getContext('2d');
 testCtx.font = "32px Sans";
-testCtx.fillStyle = "green";
+
+cloudinary.config({
+    cloud_name: secrets.cloudinaryCloudName,
+    api_key: secrets.cloudinaryApiKey,
+    api_secret: secrets.cloudinaryApiSecret
+});
+
+//Host an image
+lib.hostImage = function (image) {
+    return new Promise((resolve, reject) => {
+        var upload = cloudinary.uploader.upload_stream((err, res) => {
+            if (!err && res) {
+                resolve(res.secure_url);
+            }
+            else {
+                reject(err);
+            }
+        });
+        upload.end(lib.uriToPng(image));
+    });
+};
 
 //Create player list
 lib.createPlayerList = async function (players) {
@@ -27,29 +50,30 @@ lib.createPlayerList = async function (players) {
     var ctx = canvas.getContext('2d');
 
     ctx.font = "32px Sans";
-    ctx.fillStyle = "green";
 
     async function drawPngImage(player) {
         var cachePath = path.join(__dirname, `./cache/${player.id}.png`);
-        var cache = await fsPromises.stat(cachePath);
         var url;
-        if(cache.isFile()){
+        if (fs.existsSync(cachePath)) {
             url = cachePath;
         }
-        else{
+        else {
             url = player.url.replace(path.extname(player.url), ".png?size=64");
+            https.get(url, res => {
+                res.pipe(fs.createWriteStream(cachePath));
+            });
         }
         console.log(url);
         return await loadImage(url);
     };
 
     function getNameWidth(player) {
-        console.log(testCtx.measureText(player.name).width, player.name)
         return testCtx.measureText(player.name).width;
     }
 
     var images = await Promise.all(players.map(drawPngImage));
     for (var i = 0; i < players.length; i++) {
+        ctx.fillStyle = players[i].color;
         ctx.save();
         ctx.beginPath();
         ctx.arc(32, (64 + 16) * i + 32, 32, 0, Math.PI * 2);
@@ -59,35 +83,9 @@ lib.createPlayerList = async function (players) {
         ctx.restore();
         ctx.fillText(players[i].name, 64 + 16, 48 + (64 + 16) * i);
     }
-    await fsPromises.writeFile("./res/canvas.png", lib.uriToPng(canvas.toDataURL()));
-    console.log("done making player list", canvas.width, canvas.height, maxWidth);
-}
-
-lib.createPlayerList([
-    {
-        url: "https://cdn.discordapp.com/embed/avatars/4.png",
-        name: "<programmer>Rajas</programmer>",
-        id: "a"
-    },
-    {
-        url: "https://cdn.discordapp.com/avatars/539505577286434816/bd289c17a1dff59e88df42b73bde2c22.webp",
-        name: "Secynt",
-        id: "b"
-    }
-]);
-
-async function help() {
-    var uri = await textToImage.generate("<programmer>Rajas</programmer>", {
-        bgColor: "transparent",
-        textColor: "green"
-    });
-    await fsPromises.writeFile(imagePath, new Buffer(uri.split(',')[1], 'base64'));
-    var dimensions = await sizeOf(imagePath);
-    var canvas = createCanvas(dimensions.width, dimensions.height);
-    var ctx = canvas.getContext('2d');
-    var image = await loadImage(imagePath);
-    ctx.drawImage(image, 0, 0, dimensions.width, dimensions.height);
-    await fsPromises.writeFile(finalImagePath, new Buffer(canvas.toDataURL().split(',')[1], 'base64'));
+    var uri = canvas.toDataURL();
+    await fsPromises.writeFile("./res/canvas.png", lib.uriToPng(uri));
+    return await lib.hostImage(uri);
 };
 
 //Export the module
