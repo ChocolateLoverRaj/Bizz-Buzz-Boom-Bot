@@ -82,7 +82,8 @@ manager.command("preset", "Create a preset. Example: preset normal --mapping=2:b
                             name: presetName,
                             mapping: mapping,
                             time: time,
-                            quit: quit
+                            quit: quit,
+                            author: msg.author.id
                         };
                         var presets = mongodbhelper.collection("bizz-buzz-boom-presets");
                         switch (exists) {
@@ -138,6 +139,22 @@ manager.command("preset", "Create a preset. Example: preset normal --mapping=2:b
         console.log(presetName)
     }
 
+});
+
+manager.command("presets", "Shows all available presets.", undefined, (msg, args, flags) => {
+    var embed = new Discord.MessageEmbed()
+    .setTitle("Available Presets");
+    mongodbhelper.collection("bizz-buzz-boom-presets").find(undefined).forEach(preset => {
+        var member = msg.guild.member(preset.author);
+        embed.addField(member ? member.displayName : "Unknown Author", preset.name);
+    }, err => {
+        if(!err){
+            msg.reply(embed);
+        }
+        else{
+            msg.reply("Error getting presets.");
+        }
+    });
 });
 
 manager.command("create", "Create a game. Example: create --preset=myPreset --abandon", new Map().set("p", "preset").set("a", "abandon"), (msg, args, flags) => {
