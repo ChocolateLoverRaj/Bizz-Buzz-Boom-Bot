@@ -1,11 +1,20 @@
 //Create images
-const { createCanvas, loadImage } = require('canvas');
+//Node.js Modules
 const fs = require('fs');
-const fsPromises = fs.promises;
 const path = require('path');
 const https = require('https');
-const secrets = require('./secrets')();
+
+//Npm Modules
+const { createCanvas, loadImage } = require('canvas');
 const cloudinary = require('cloudinary').v2;
+
+//My Modules
+const secrets = require("./secrets")();
+const { avatarSize } = require("./config").bizzBuzzBoom;
+
+const fsPromises = fs.promises;
+const avatarPadding = avatarSize / 4;
+const avatarHalf = avatarSize / 2;
 
 //Image module
 const lib = {};
@@ -20,7 +29,7 @@ lib.uriToPng = function (uri) {
 
 //Ctx for testing
 const testCtx = createCanvas(1, 1).getContext('2d');
-testCtx.font = "32px Sans";
+testCtx.font = `${avatarHalf}px Sans`;
 
 cloudinary.config({
     cloud_name: secrets.cloudinaryCloudName,
@@ -46,10 +55,10 @@ lib.hostImage = function (image) {
 //Create player list
 lib.createPlayerList = async function (players) {
     var maxWidth = Math.max.apply(undefined, players.map(getNameWidth));
-    var canvas = createCanvas(64 + 16 + maxWidth, players.length * (64 + 16));
+    var canvas = createCanvas(avatarSize + avatarPadding + maxWidth, players.length * (avatarSize + avatarPadding));
     var ctx = canvas.getContext('2d');
 
-    ctx.font = "32px Sans";
+    ctx.font = `${avatarHalf}px Sans`;
 
     async function drawPngImage(player) {
         var cachePath = path.join(__dirname, `./cache/${player.id}.png`);
@@ -58,12 +67,11 @@ lib.createPlayerList = async function (players) {
             url = cachePath;
         }
         else {
-            url = player.url.replace(path.extname(player.url), ".png?size=64");
+            url = player.url.replace(path.extname(player.url), `.png?size=${avatarSize}`);
             https.get(url, res => {
                 res.pipe(fs.createWriteStream(cachePath));
             });
         }
-        console.log(url);
         return await loadImage(url);
     };
 
@@ -76,12 +84,12 @@ lib.createPlayerList = async function (players) {
         ctx.fillStyle = players[i].color;
         ctx.save();
         ctx.beginPath();
-        ctx.arc(32, (64 + 16) * i + 32, 32, 0, Math.PI * 2);
+        ctx.arc(avatarHalf, (avatarSize + avatarPadding) * i + avatarHalf, avatarHalf, 0, Math.PI * 2);
         ctx.closePath();
         ctx.clip();
-        ctx.drawImage(images[i], 0, (64 + 16) * i, 64, 64);
+        ctx.drawImage(images[i], 0, (avatarSize + avatarPadding) * i, avatarSize, avatarSize);
         ctx.restore();
-        ctx.fillText(players[i].name, 64 + 16, 48 + (64 + 16) * i);
+        ctx.fillText(players[i].name, avatarSize + avatarPadding, avatarSize - avatarPadding + (avatarSize + avatarPadding) * i);
     }
     var uri = canvas.toDataURL();
     await fsPromises.writeFile("./res/canvas.png", lib.uriToPng(uri));

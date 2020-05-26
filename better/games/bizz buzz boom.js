@@ -258,7 +258,7 @@ manager.command("players", "List players in a game.", undefined, (msg, args, fla
             image.createPlayerList(players.map(createPlayer))
                 .then(url => {
                     var embed = new Discord.MessageEmbed()
-                        .setTitle("Bizz Buzz Boom Players.")
+                        .setTitle("Bizz Buzz Boom Players")
                         .setImage(url);
                     playersEmbed = embed;
                     msg.reply(embed);

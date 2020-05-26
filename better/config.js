@@ -15,7 +15,8 @@ const defaultConfig = {
             },
             time: 60,
             quit: true
-        }
+        },
+        avatarSize: 64
     },
     database: "heroku_w8wxzsb7"
 };
