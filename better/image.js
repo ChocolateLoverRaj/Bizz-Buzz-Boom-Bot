@@ -6,7 +6,6 @@ const https = require('https');
 
 //Npm Modules
 const { createCanvas, loadImage } = require('canvas');
-const cloudinary = require('cloudinary').v2;
 
 //My Modules
 const secrets = require("./secrets")();
@@ -30,34 +29,14 @@ testCtx.font = `${avatarHalf}px Sans`;
 
 //Initialize and delete cache
 lib.init = async function () {
-    cloudinary.config({
-        cloud_name: secrets.cloudinaryCloudName,
-        api_key: secrets.cloudinaryApiKey,
-        api_secret: secrets.cloudinaryApiSecret
-    });
-
-    //Remoev cloudinary cache
-    var cloudinaryCacheRemover = cloudinary.api.delete_resources_by_prefix("cache/");
-
     //Remove folder cache
-    async function removeFolderCache() {
-        var caches = await fsPromises.readdir(path.join(__dirname, "./cache"));
+    var caches = await fsPromises.readdir(path.join(__dirname, "./cache"));
 
-        async function deleteFile(fileName){
-            await fsPromises.unlink(path.join(__dirname, `./cache/${fileName}`))
-        };
-        await Promise.all(caches.map(deleteFile));
+    async function deleteFile(fileName) {
+        await fsPromises.unlink(path.join(__dirname, `./cache/${fileName}`))
     };
-    var folderCacheRemover = removeFolderCache();
-
-    await Promise.all([cloudinaryCacheRemover, folderCacheRemover]);
+    await Promise.all(caches.map(deleteFile));
 }
-
-//Host an image
-lib.hostImage = async function (image) {
-    var upload = await cloudinary.uploader.unsigned_upload(image, "daily_cache");
-    return upload.secure_url;
-};
 
 //Create player list
 lib.createPlayerList = async function (players) {
@@ -98,8 +77,7 @@ lib.createPlayerList = async function (players) {
         ctx.restore();
         ctx.fillText(players[i].name, avatarSize + avatarPadding, avatarSize - avatarPadding + (avatarSize + avatarPadding) * i);
     }
-    var uri = canvas.toDataURL();
-    return await lib.hostImage(uri);
+    return lib.uriToPng(canvas.toDataURL());
 };
 
 //Export the module

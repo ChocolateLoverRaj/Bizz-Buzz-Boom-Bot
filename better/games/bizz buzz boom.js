@@ -10,7 +10,11 @@ const mongodbhelper = require("../mongodbhelper");
 const config = require("../config");
 const image = require("../image");
 
-const manager = new CommandManager();
+var imageHostingChannel;
+
+const manager = new CommandManager(async client => {
+    imageHostingChannel = client.channels.resolve("710653500669034607");
+});
 
 const mappingRegex = /^(\d+:([a-z]\w*)(?!(.*:(\2|last)(,|$).*))(,|$))+$/i;
 const presetNameRegex = /^\w+$/is;
@@ -20,7 +24,7 @@ var gamePreset;
 var gameLeader;
 var gameStarted = false;
 var players = [];
-var playersEmbed = false;
+var playersPromise = false;
 
 const presetMap = new Map()
     .set("m", "mapping")
@@ -143,15 +147,15 @@ manager.command("preset", "Create a preset. Example: preset normal --mapping=2:b
 
 manager.command("presets", "Shows all available presets.", undefined, (msg, args, flags) => {
     var embed = new Discord.MessageEmbed()
-    .setTitle("Available Presets");
+        .setTitle("Available Presets");
     mongodbhelper.collection("bizz-buzz-boom-presets").find(undefined).forEach(preset => {
         var member = msg.guild.member(preset.author);
         embed.addField(member ? member.displayName : "Unknown Author", preset.name);
     }, err => {
-        if(!err){
+        if (!err) {
             msg.reply(embed);
         }
-        else{
+        else {
             msg.reply("Error getting presets.");
         }
     });
@@ -187,7 +191,7 @@ manager.command("create", "Create a game. Example: create --preset=myPreset --ab
             gameLeader = msg.author.id;
             gameStarted = false;
             players = [msg.author.id];
-            playersEmbed = false;
+            playersPromise = false;
             msg.reply("Created game. You have joined automatically because you are the leader. To start the game, use the \`start\` command.");
             msg.channel.send("Who wants to play some Bizz Buzz Boom? Use the \`join\` command.");
         }
@@ -203,7 +207,7 @@ manager.command("join", "Join the game.", undefined, (msg, args, flags) => {
             var id = msg.author.id, nick = msg.guild.member(msg.author.id).displayName;
             if (!players.includes(id)) {
                 players.push(id);
-                playersEmbed = false;
+                playersPromise = false;
                 msg.reply("Added you to the game.");
             }
             else {
@@ -247,7 +251,7 @@ manager.command("leave", "Leave a game.", undefined, (msg, args, flags) => {
                     }
                 });
                 players = newPlayers;
-                playersEmbed = false;
+                playersPromise = false;
                 msg.reply("Successfully removed you from the game.");
             }
         }
@@ -262,7 +266,7 @@ manager.command("leave", "Leave a game.", undefined, (msg, args, flags) => {
 
 manager.command("players", "List players in a game.", undefined, (msg, args, flags) => {
     if (gameCreated) {
-        if (!playersEmbed) {
+        if (!playersPromise) {
             function createPlayer(id) {
                 var member = msg.guild.member(id);
                 return {
@@ -272,20 +276,31 @@ manager.command("players", "List players in a game.", undefined, (msg, args, fla
                     url: member.user.displayAvatarURL()
                 };
             }
-            image.createPlayerList(players.map(createPlayer))
-                .then(url => {
-                    var embed = new Discord.MessageEmbed()
-                        .setTitle("Bizz Buzz Boom Players")
-                        .setImage(url);
-                    playersEmbed = embed;
-                    msg.reply(embed);
-                })
-                .catch(err => {
-                    msg.reply("Couldn't get players image.");
-                });
+            playersPromise = new Promise((resolve, reject) => {
+                image.createPlayerList(players.map(createPlayer))
+                    .then(async url => {
+                        var attachment = imageHostingChannel.send(new Discord.MessageAttachment(url, "players.png"))
+                            .then(attachment => {
+                                resolve(attachment.attachments.entries().next().value[1].url);
+                                sendPlayerAttachment();
+                            });
+                    })
+                    .catch(err => {
+                        msg.reply("Couldn't get players image.");
+                    });
+            });
         }
         else {
-            msg.reply(playersEmbed);
+            sendPlayerAttachment();
+        }
+
+        function sendPlayerAttachment() {
+            Promise.race([playersPromise]).then(url => {
+                var embed = new Discord.MessageEmbed()
+                    .setTitle("Bizz Buzz Boom Players")
+                    .setImage(url);
+                msg.reply(embed);
+            });
         }
     }
     else {

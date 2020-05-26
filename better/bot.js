@@ -19,7 +19,7 @@ const client = new Discord.Client();
 
 //Handle message
 client.on('message', async msg => {
-    switch(msg.channel.id){
+    switch (msg.channel.id) {
         case config.channels.bizzBuzzBoom:
             //console.log(msg.cleanContent)
             bizzBuzzBoom.input(msg);
@@ -29,10 +29,13 @@ client.on('message', async msg => {
 
 //Init
 bot.init = function () {
+    //Init
     return new Promise((resolve, reject) => {
         client
             .once('ready', () => {
-                resolve();
+                bizzBuzzBoom.init(client)
+                    .then(resolve)
+                    .catch(reject);
             })
             .login(secrets.token)
             .catch(reject);

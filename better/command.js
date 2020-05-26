@@ -9,14 +9,29 @@ const flagRegex = /((-[a-zA-Z](=[\w:,]+)?)|(--[a-zA-Z]+(=[\w:,]+)?))/s;
 
 //Command class to export
 module.exports = class {
-    constructor(helpCommand = true) {
+    constructor(init, helpCommand = true) {
         this.commands = new Map();
-        if(helpCommand){
+        this.inited = false;
+        if (typeof init === 'function' && init.length === 1) {
+            this.init = async function (client) {
+                if (client instanceof Discord.Client) {
+                    await init(client);
+                    this.inited = true;
+                }
+                else {
+                    throw new TypeError("Invalid Client.");
+                }
+            };
+        }
+        else {
+            throw new Error("initFunction must be a function.");
+        }
+        if (helpCommand) {
             var commandMap = this.commands;
-            this.command("help", "Displays this list of commands.", undefined, function(msg, args, flags){
+            this.command("help", "Displays this list of commands.", undefined, function (msg, args, flags) {
                 var embed = new Discord.MessageEmbed();
                 embed.setTitle("Bizz Buzz Boom Bot Commands.");
-                for(const [key, value] of commandMap.entries()){
+                for (const [key, value] of commandMap.entries()) {
                     embed.addField(key, value.discription);
                 }
                 msg.reply(embed);
@@ -60,49 +75,54 @@ module.exports = class {
         return this;
     }
     input(msg) {
-        var content = msg.content.trim();
-        if (inputRegex.test(content)) {
-            var flagLessContent = content.replace(flagRemoveRegex, '');
-            flagLessContent = flagLessContent.replace(/\s+/g, ' ');
-            var words = flagLessContent.split(' ');
-            var searchStr = '';
-            var args = [];
-            var foundStr = false;
-            for (var i = 0; i < words.length; i++) {
-                searchStr = (searchStr + ' ' + words[i]).trim();
-                if (!foundStr) {
-                    if (this.commands.has(searchStr)) {
-                        foundStr = searchStr;
+        if (this.inited) {
+            var content = msg.content.trim();
+            if (inputRegex.test(content)) {
+                var flagLessContent = content.replace(flagRemoveRegex, '');
+                flagLessContent = flagLessContent.replace(/\s+/g, ' ');
+                var words = flagLessContent.split(' ');
+                var searchStr = '';
+                var args = [];
+                var foundStr = false;
+                for (var i = 0; i < words.length; i++) {
+                    searchStr = (searchStr + ' ' + words[i]).trim();
+                    if (!foundStr) {
+                        if (this.commands.has(searchStr)) {
+                            foundStr = searchStr;
+                        }
+                    }
+                    else {
+                        args.push(words[i]);
                     }
                 }
-                else {
-                    args.push(words[i]);
+                if (foundStr) {
+                    var shortFlags = [];
+                    var fullFlags = [];
+                    //Find the flags
+                    var rest = content;
+                    while (true) {
+                        var match = flagRegex.exec(rest);
+                        if (match === null) {
+                            break;
+                        }
+                        else {
+                            var flag = match[0].split('=');
+                            if (match[0].includes('--')) {
+                                fullFlags.push({ name: flag[0].substring(2), value: flag[1] });
+                            }
+                            else {
+                                shortFlags.push({ name: flag[0].substring(1), value: flag[1] });
+                            }
+                            rest = rest.substring(match.index + match[0].length);
+                        }
+                    }
+                    this.commands.get(foundStr).handler(msg, args, shortFlags, fullFlags);
                 }
             }
-            if (foundStr) {
-                var shortFlags = [];
-                var fullFlags = [];
-                //Find the flags
-                var rest = content;
-                while(true){
-                    var match = flagRegex.exec(rest);
-                    if(match === null){
-                        break;
-                    }
-                    else{
-                        var flag = match[0].split('=');
-                        if(match[0].includes('--')){
-                            fullFlags.push({name: flag[0].substring(2), value: flag[1]});
-                        }
-                        else{
-                            shortFlags.push({name: flag[0].substring(1), value: flag[1]});
-                        }
-                        rest = rest.substring(match.index + match[0].length);
-                    }
-                }
-                this.commands.get(foundStr).handler(msg, args, shortFlags, fullFlags);
-            }
+            return this;
         }
-        return this;
+        else {
+            throw new ReferenceError("Must call init first.");
+        }
     }
 }

@@ -19,12 +19,8 @@
   "homepage": "https://github.com/ChocolateLoverRaj/Bizz-Buzz-Boom-Bot#readme",
   "dependencies": {
     "canvas": "^2.6.1",
-    "cloudinary": "^1.21.0",
     "discord.js": "^12.2.0",
-    "image-size": "^0.8.3",
-    "jsdom": "^16.2.2",
     "mongodb": "^3.5.6",
-    "text-to-image": "^2.3.0",
-    "webp-converter": "^2.2.3"
+    "text-to-image": "^2.3.0"
   }
 }

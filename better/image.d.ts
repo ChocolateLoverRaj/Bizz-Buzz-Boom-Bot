@@ -8,7 +8,7 @@ declare namespace image{
 
     export function init(): Promise<undefined>;
 
-    export function hostImage(uri: string): Promise<string>;
+    export function uriToPng(uri: string): Buffer;
 
     export function createPlayerList(players: Array<Player>): Promise<string>;
 }
