@@ -19,9 +19,6 @@ const avatarHalf = avatarSize / 2;
 //Image module
 const lib = {};
 
-const imagePath = "./res/test.png";
-const finalImagePath = "./res/output.png";
-
 //Uri to png
 lib.uriToPng = function (uri) {
     return new Buffer.from(uri.split(',')[1], 'base64');
@@ -31,25 +28,35 @@ lib.uriToPng = function (uri) {
 const testCtx = createCanvas(1, 1).getContext('2d');
 testCtx.font = `${avatarHalf}px Sans`;
 
-cloudinary.config({
-    cloud_name: secrets.cloudinaryCloudName,
-    api_key: secrets.cloudinaryApiKey,
-    api_secret: secrets.cloudinaryApiSecret
-});
+//Initialize and delete cache
+lib.init = async function () {
+    cloudinary.config({
+        cloud_name: secrets.cloudinaryCloudName,
+        api_key: secrets.cloudinaryApiKey,
+        api_secret: secrets.cloudinaryApiSecret
+    });
+
+    //Remoev cloudinary cache
+    var cloudinaryCacheRemover = cloudinary.api.delete_resources_by_prefix("cache/");
+
+    //Remove folder cache
+    async function removeFolderCache() {
+        var caches = await fsPromises.readdir(path.join(__dirname, "./cache"));
+
+        async function deleteFile(fileName){
+            await fsPromises.unlink(path.join(__dirname, `./cache/${fileName}`))
+        };
+        await Promise.all(caches.map(deleteFile));
+    };
+    var folderCacheRemover = removeFolderCache();
+
+    await Promise.all([cloudinaryCacheRemover, folderCacheRemover]);
+}
 
 //Host an image
-lib.hostImage = function (image) {
-    return new Promise((resolve, reject) => {
-        var upload = cloudinary.uploader.upload_stream((err, res) => {
-            if (!err && res) {
-                resolve(res.secure_url);
-            }
-            else {
-                reject(err);
-            }
-        });
-        upload.end(lib.uriToPng(image));
-    });
+lib.hostImage = async function (image) {
+    var upload = await cloudinary.uploader.unsigned_upload(image, "daily_cache");
+    return upload.secure_url;
 };
 
 //Create player list
@@ -92,7 +99,6 @@ lib.createPlayerList = async function (players) {
         ctx.fillText(players[i].name, avatarSize + avatarPadding, avatarSize - avatarPadding + (avatarSize + avatarPadding) * i);
     }
     var uri = canvas.toDataURL();
-    await fsPromises.writeFile("./res/canvas.png", lib.uriToPng(uri));
     return await lib.hostImage(uri);
 };
 
